@@ -1,0 +1,26 @@
+{
+  "name": "econtract-toolboxjs",
+  "description": "JavaScript library for toolbox API",
+  "main": [
+    "build/js/econtract-toolbox.js",
+    "build/css/econtract-toolbox.css"
+  ],
+  "keywords": [
+    "toolbox",
+    "econtract"
+  ],
+  "license": "proprietary",
+  "private": true,
+  "dependencies": {
+    "jquery": "~2.1.0",
+    "devbridge-autocomplete": "^1.2.25",
+    "bootstrap": "^3.3.6"
+  },
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}

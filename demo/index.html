@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html;charset=utf-8">
+    <title>ToolboxJS Demo</title>
+    <script src="../bower_components/jquery/dist/jquery.js"></script>
+    <script src="../bower_components/devbridge-autocomplete/dist/jquery.autocomplete.js"></script>
+    <script src="../src/econtract-toolbox.js"></script>
+    <link href="../bower_components/bootstrap/dist/css/bootstrap.css" rel="stylesheet" />
+    <link href="../bower_components/bootstrap/dist/css/bootstrap-theme.css" rel="stylesheet" />
+    <link href="../dist/css/econtract-toolbox.css" rel="stylesheet" />
+</head>
+<body>
+<div class="container">
+    <h1>E-Contract ToolboxJS Demo</h1>
+    <h2>Address autocomplete</h2>
+    <div class="row" id="address-empty">
+        <div class="col-sm-2">
+            <input class="form-control postcode" type="text" name="postcode" placeholder="Postcode" />
+        </div>
+        <div class="col-sm-5">
+            <input class="form-control city" type="text" name="city" placeholder="City" />
+        </div>
+        <div class="col-sm-5">
+            <input class="form-control street" type="text" name="city" placeholder="Street" />
+        </div>
+    </div>
+
+    <h2>Address prefilled</h2>
+    <div class="row" id="address-prefilled">
+        <div class="col-sm-2">
+            <input class="form-control postal-code" type="text" name="postcode" placeholder="Postcode" value="2321" />
+        </div>
+        <div class="col-sm-5">
+            <input class="form-control city" type="text" name="city" placeholder="City" value="Meer" />
+        </div>
+        <div class="col-sm-5">
+            <input class="form-control street" type="text" name="city" placeholder="Street" value="Bieshof" />
+        </div>
+    </div>
+</div>
+
+<script type="text/javascript">
+    Econtract.Toolbox.Config.apiEndpoint = 'http://default.toolbox.staging-001.econtract.prvw.eu/'
+    $('#address-empty').addressAutocomplete();
+    $('#address-prefilled').addressAutocomplete({
+        postcodeSelector: '.postal-code'
+    });
+</script>
+</body>
+</html>

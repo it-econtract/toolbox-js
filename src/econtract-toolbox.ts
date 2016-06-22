@@ -1,14 +1,14 @@
 /// <reference path="../typings/index.d.ts" />
-/// <reference path="../bower_components/devbridge-autocomplete/typings/jquery/jquery.d.ts" />
 /// <reference path="../bower_components/devbridge-autocomplete/typings/jquery-autocomplete/jquery.autocomplete.d.ts" />
 
 namespace Econtract {
     export namespace Toolbox {
         export var Config = {
-            apiEndpoint: '',
-            postcodeSelector: ".postcode",
-            citySelector: ".city",
-            streetSelector: ".street"
+            apiEndpoint: '', // Toolbox API endpoint
+            postcodeSelector: ".postcode", // Postcode field selector (relative to address container)
+            citySelector: ".city", // City field selector (relative to address container)
+            streetSelector: ".street", // Street field selector (relative to address container)
+            delay: 0, // Delay autocomplete requests by this amount of miliseconds
         };
 
         interface Address {
@@ -55,6 +55,8 @@ namespace Econtract {
             public onSelectCallback;
             public endpoint:string;
             public params:any;
+            public delay:number = Config.delay;
+            public minChars:number = 1;
 
             constructor(endpoint:string, paramName:string) {
                 this.paramName = paramName;
@@ -67,10 +69,11 @@ namespace Econtract {
                     paramName: this.paramName,
                     serviceUrl: this.endpoint,
                     dataType: 'json',
-                    deferRequestBy: 300,
+                    deferRequestBy: this.delay,
                     transformResult: this.transformResultCallback,
                     onSelect: this.onSelectCallback,
-                    params: this.params ? this.params : {}
+                    params: this.params ? this.params : {},
+                    minChars: this.minChars
                 });
             }
         }
@@ -112,6 +115,7 @@ namespace Econtract {
                 if (this.cityElement) {
                     var cityAutocomplete = new CityAutocomplete(this.endpoint + '/cities', 'name');
                     cityAutocomplete.onSelectCallback = setCityOnSelect;
+                    cityAutocomplete.minChars = 2;
                     cityAutocomplete.create(this.cityElement);
                 }
 
@@ -151,6 +155,7 @@ namespace Econtract {
                     if (this.streetElement) {
                         var autocomplete = new Autocomplete(this.endpoint + '/streets', 'name');
                         autocomplete.transformResultCallback = AddressAutocomplete.streetTransformResultCallback;
+                        autocomplete.minChars = 3;
                         autocomplete.params = {"city_id": this.city.id};
                         autocomplete.create(this.streetElement);
                         this.streetElement.focus();

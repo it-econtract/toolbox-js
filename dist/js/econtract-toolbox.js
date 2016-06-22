@@ -11,7 +11,8 @@ var Econtract;
             apiEndpoint: '',
             postcodeSelector: ".postcode",
             citySelector: ".city",
-            streetSelector: ".street"
+            streetSelector: ".street",
+            delay: 0,
         };
         var Client = (function () {
             function Client(endpoint) {
@@ -35,6 +36,8 @@ var Econtract;
         Toolbox.Client = Client;
         var Autocomplete = (function () {
             function Autocomplete(endpoint, paramName) {
+                this.delay = Toolbox.Config.delay;
+                this.minChars = 1;
                 this.paramName = paramName;
                 this.endpoint = endpoint;
             }
@@ -44,10 +47,11 @@ var Econtract;
                     paramName: this.paramName,
                     serviceUrl: this.endpoint,
                     dataType: 'json',
-                    deferRequestBy: 300,
+                    deferRequestBy: this.delay,
                     transformResult: this.transformResultCallback,
                     onSelect: this.onSelectCallback,
-                    params: this.params ? this.params : {}
+                    params: this.params ? this.params : {},
+                    minChars: this.minChars
                 });
             };
             return Autocomplete;
@@ -83,6 +87,7 @@ var Econtract;
                 if (this.cityElement) {
                     var cityAutocomplete = new CityAutocomplete(this.endpoint + '/cities', 'name');
                     cityAutocomplete.onSelectCallback = setCityOnSelect;
+                    cityAutocomplete.minChars = 2;
                     cityAutocomplete.create(this.cityElement);
                 }
                 if (this.postcodeElement.val()) {
@@ -118,6 +123,7 @@ var Econtract;
                     if (this.streetElement) {
                         var autocomplete = new Autocomplete(this.endpoint + '/streets', 'name');
                         autocomplete.transformResultCallback = AddressAutocomplete.streetTransformResultCallback;
+                        autocomplete.minChars = 3;
                         autocomplete.params = { "city_id": this.city.id };
                         autocomplete.create(this.streetElement);
                         this.streetElement.focus();

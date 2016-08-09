@@ -16,7 +16,7 @@ Usage
 
 <script type="text/javascript">
 $('#address').addressAutocomplete({
-    apiEndpoint: 'http://toolbox.econtract.be'
+    apiEndpoint: 'https://toolbox.econtract.be'
 });
 </script>
 ```
@@ -27,7 +27,7 @@ You can change the global configuration in this way:
 
 ```js
 Econtract.Toolbox.Config = {
-    apiEndpoint: 'http://toolbox.econtract.be',
+    apiEndpoint: 'https://toolbox.econtract.be',
     postcodeSelector: ".postcode",
     citySelector: ".city",
     streetSelector: ".street"

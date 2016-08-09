@@ -5,11 +5,11 @@ namespace Econtract {
     export namespace Toolbox {
         export var Config = {
             apiEndpoint: '',               // Toolbox API endpoint
+            apiKey: "",                    // Toolbox API key
             postcodeSelector: ".postcode", // Postcode field selector (relative to address container)
             citySelector: ".city",         // City field selector (relative to address container)
             streetSelector: ".street",     // Street field selector (relative to address container)
             delay: 0,                      // Delay autocomplete requests by this amount of miliseconds
-            accessToken: ""                // Toolbox API access token
         };
 
         interface Address {
@@ -39,7 +39,7 @@ namespace Econtract {
             public get(uri:string, query) {
                 return $.get(
                     this.endpoint + uri,
-                    $.extend({toolbox_key: Config.accessToken}, query)
+                    $.extend({toolbox_key: Config.apiKey}, query)
                 );
             }
 
@@ -70,7 +70,7 @@ namespace Econtract {
                 this.paramName = paramName;
                 this.endpoint = endpoint;
                 this.params = {
-                    toolbox_key: Config.accessToken
+                    toolbox_key: Config.apiKey
                 }
             }
 

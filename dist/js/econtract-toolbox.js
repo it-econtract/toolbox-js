@@ -9,18 +9,18 @@ var Econtract;
     (function (Toolbox) {
         Toolbox.Config = {
             apiEndpoint: '',
+            apiKey: '',
             postcodeSelector: ".postcode",
             citySelector: ".city",
             streetSelector: ".street",
             delay: 0,
-            accessToken: ""
         };
         var Client = (function () {
             function Client(endpoint) {
                 this.endpoint = endpoint ? endpoint : Toolbox.Config.apiEndpoint;
             }
             Client.prototype.get = function (uri, query) {
-                return $.get(this.endpoint + uri, $.extend({ toolbox_key: Toolbox.Config.accessToken }, query));
+                return $.get(this.endpoint + uri, $.extend({ toolbox_key: Toolbox.Config.apiKey }, query));
             };
             Client.prototype.findOneCityByPostcode = function (postcode, callback) {
                 this.get('/cities', { postcode: postcode })
@@ -46,7 +46,7 @@ var Econtract;
                 this.paramName = paramName;
                 this.endpoint = endpoint;
                 this.params = {
-                    toolbox_key: Toolbox.Config.accessToken
+                    toolbox_key: Toolbox.Config.apiKey
                 };
             }
             Autocomplete.prototype.addParam = function (name, value) {

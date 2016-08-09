@@ -4,11 +4,12 @@
 namespace Econtract {
     export namespace Toolbox {
         export var Config = {
-            apiEndpoint: '', // Toolbox API endpoint
+            apiEndpoint: '',               // Toolbox API endpoint
             postcodeSelector: ".postcode", // Postcode field selector (relative to address container)
-            citySelector: ".city", // City field selector (relative to address container)
-            streetSelector: ".street", // Street field selector (relative to address container)
-            delay: 0, // Delay autocomplete requests by this amount of miliseconds
+            citySelector: ".city",         // City field selector (relative to address container)
+            streetSelector: ".street",     // Street field selector (relative to address container)
+            delay: 0,                      // Delay autocomplete requests by this amount of miliseconds
+            accessToken: ""                // Toolbox API access token
         };
 
         interface Address {
@@ -35,8 +36,15 @@ namespace Econtract {
                 this.endpoint = endpoint ? endpoint : Config.apiEndpoint;
             }
 
+            public get(uri:string, query) {
+                return $.get(
+                    this.endpoint + uri,
+                    $.extend({toolbox_key: Config.accessToken}, query)
+                );
+            }
+
             public findOneCityByPostcode(postcode:number, callback) {
-                $.get(this.endpoint + '/cities', {postcode: postcode})
+                this.get('/cities', {postcode: postcode})
                     .success(function (response) {
                         if (response.length) {
                             callback(response[0]);
@@ -54,13 +62,20 @@ namespace Econtract {
             public transformResultCallback;
             public onSelectCallback;
             public endpoint:string;
-            public params:any;
+            private params:any = {};
             public delay:number = Config.delay;
             public minChars:number = 1;
 
             constructor(endpoint:string, paramName:string) {
                 this.paramName = paramName;
                 this.endpoint = endpoint;
+                this.params = {
+                    toolbox_key: Config.accessToken
+                }
+            }
+
+            public addParam(name: string, value: any) {
+                this.params[name] = value;
             }
 
             public create(input:JQuery) {
@@ -72,7 +87,7 @@ namespace Econtract {
                     deferRequestBy: this.delay,
                     transformResult: this.transformResultCallback,
                     onSelect: this.onSelectCallback,
-                    params: this.params ? this.params : {},
+                    params: this.params,
                     minChars: this.minChars
                 });
             }
@@ -156,7 +171,7 @@ namespace Econtract {
                         var autocomplete = new Autocomplete(this.endpoint + '/streets', 'name');
                         autocomplete.transformResultCallback = AddressAutocomplete.streetTransformResultCallback;
                         autocomplete.minChars = 3;
-                        autocomplete.params = {"city_id": this.city.id};
+                        autocomplete.addParam("city_id", this.city.id);
                         autocomplete.create(this.streetElement);
                         this.streetElement.focus();
                     }

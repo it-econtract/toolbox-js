@@ -13,13 +13,17 @@ var Econtract;
             citySelector: ".city",
             streetSelector: ".street",
             delay: 0,
+            accessToken: ""
         };
         var Client = (function () {
             function Client(endpoint) {
                 this.endpoint = endpoint ? endpoint : Toolbox.Config.apiEndpoint;
             }
+            Client.prototype.get = function (uri, query) {
+                return $.get(this.endpoint + uri, $.extend({ toolbox_key: Toolbox.Config.accessToken }, query));
+            };
             Client.prototype.findOneCityByPostcode = function (postcode, callback) {
-                $.get(this.endpoint + '/cities', { postcode: postcode })
+                this.get('/cities', { postcode: postcode })
                     .success(function (response) {
                     if (response.length) {
                         callback(response[0]);
@@ -36,11 +40,18 @@ var Econtract;
         Toolbox.Client = Client;
         var Autocomplete = (function () {
             function Autocomplete(endpoint, paramName) {
+                this.params = {};
                 this.delay = Toolbox.Config.delay;
                 this.minChars = 1;
                 this.paramName = paramName;
                 this.endpoint = endpoint;
+                this.params = {
+                    toolbox_key: Toolbox.Config.accessToken
+                };
             }
+            Autocomplete.prototype.addParam = function (name, value) {
+                this.params[name] = value;
+            };
             Autocomplete.prototype.create = function (input) {
                 return input.devbridgeAutocomplete({
                     autoSelectFirst: true,
@@ -50,7 +61,7 @@ var Econtract;
                     deferRequestBy: this.delay,
                     transformResult: this.transformResultCallback,
                     onSelect: this.onSelectCallback,
-                    params: this.params ? this.params : {},
+                    params: this.params,
                     minChars: this.minChars
                 });
             };
@@ -124,7 +135,7 @@ var Econtract;
                         var autocomplete = new Autocomplete(this.endpoint + '/streets', 'name');
                         autocomplete.transformResultCallback = AddressAutocomplete.streetTransformResultCallback;
                         autocomplete.minChars = 3;
-                        autocomplete.params = { "city_id": this.city.id };
+                        autocomplete.addParam("city_id", this.city.id);
                         autocomplete.create(this.streetElement);
                         this.streetElement.focus();
                     }

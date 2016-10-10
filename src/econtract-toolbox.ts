@@ -5,7 +5,7 @@ namespace Econtract {
     export namespace Toolbox {
         export var Config = {
             apiEndpoint: '',               // Toolbox API endpoint
-            apiKey: "",                    // Toolbox API key
+            apiKey: '',                    // Toolbox API key
             postcodeSelector: ".postcode", // Postcode field selector (relative to address container)
             citySelector: ".city",         // City field selector (relative to address container)
             streetSelector: ".street",     // Street field selector (relative to address container)
@@ -36,14 +36,14 @@ namespace Econtract {
                 this.endpoint = endpoint ? endpoint : Config.apiEndpoint;
             }
 
-            public get(uri:string, query) {
+            public get(uri:string, query: {}) {
                 return $.get(
                     this.endpoint + uri,
                     $.extend({toolbox_key: Config.apiKey}, query)
                 );
             }
 
-            public findOneCityByPostcode(postcode:number, callback) {
+            public findOneCityByPostcode(postcode:number, callback:void) {
                 this.get('/cities', {postcode: postcode})
                     .success(function (response) {
                         if (response.length) {
@@ -54,6 +54,19 @@ namespace Econtract {
                     }).error(function () {
                         callback(null);
                     })
+            }
+
+            public findCitiesByPostcode(postcode:number, callback:void) {
+                this.get('/cities', { postcode: postcode })
+                    .success(function (response) {
+                        if (response.length) {
+                            callback(response);
+                        } else {
+                            callback([]);
+                        }
+                    }).error(function () {
+                        callback([]);
+                    });
             }
         }
 
@@ -137,6 +150,13 @@ namespace Econtract {
                 if (this.postcodeElement.val()) {
                     var client = new Client();
                     client.findOneCityByPostcode(this.postcodeElement.val(), function (city:City) {
+                        for (var i in cities) {
+                            if (cities[i].name.toLowerCase() == self.cityElement.val().toLowerCase()) {
+                                self.setCity(cities[i]);
+                                return;
+                            }
+                        }
+
                         self.setCity(city);
                     });
                 } else {

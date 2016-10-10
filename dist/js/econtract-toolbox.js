@@ -35,6 +35,19 @@ var Econtract;
                     callback(null);
                 });
             };
+            Client.prototype.findCitiesByPostcode = function (postcode, callback) {
+                this.get('/cities', { postcode: postcode })
+                    .success(function (response) {
+                    if (response.length) {
+                        callback(response);
+                    }
+                    else {
+                        callback([]);
+                    }
+                }).error(function () {
+                    callback([]);
+                });
+            };
             return Client;
         }());
         Toolbox.Client = Client;
@@ -104,6 +117,12 @@ var Econtract;
                 if (this.postcodeElement.val()) {
                     var client = new Client();
                     client.findOneCityByPostcode(this.postcodeElement.val(), function (city) {
+                        for (var i in cities) {
+                            if (cities[i].name.toLowerCase() == self.cityElement.val().toLowerCase()) {
+                                self.setCity(cities[i]);
+                                return;
+                            }
+                        }
                         self.setCity(city);
                     });
                 }

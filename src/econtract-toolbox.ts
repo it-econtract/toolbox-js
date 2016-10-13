@@ -3,16 +3,27 @@
 
 namespace Econtract {
     export namespace Toolbox {
-        export var Config = {
-            apiEndpoint: '',               // Toolbox API endpoint
-            apiKey: '',                    // Toolbox API key
-            postcodeSelector: ".postcode", // Postcode field selector (relative to address container)
-            citySelector: ".city",         // City field selector (relative to address container)
-            streetSelector: ".street",     // Street field selector (relative to address container)
-            delay: 0,                      // Delay autocomplete requests by this amount of miliseconds
+        export var Config:AddressAutocompleteOptions = {
+            apiEndpoint: '',                      // Toolbox API endpoint
+            apiKey: '',                           // Toolbox API key
+            postcodeSelector: ".postcode",        // Postcode field selector (relative to address container)
+            citySelector: ".city",                // City field selector (relative to address container)
+            streetSelector: ".street",            // Street field selector (relative to address container)
+            houseNumberSelector: ".house-number", // Street field selector (relative to address container)
+            boxNumberSelector: ".box-number",     // Street field selector (relative to address container)
+            delay: 0,                             // Delay autocomplete requests by this amount of miliseconds
         };
 
         interface Address {
+            city:string;
+            postcode:number;
+            street:string;
+            house_number:string;
+            box:string;
+        }
+        interface Street {
+            id:number;
+            name:string;
             city:string;
             postcode:number;
         }
@@ -24,9 +35,13 @@ namespace Econtract {
 
         export interface AddressAutocompleteOptions {
             apiEndpoint : string;
+            apiKey: string,
             postcodeSelector : string;
             citySelector : string;
             streetSelector : string;
+            houseNumberSelector : string;
+            boxNumberSelector : string;
+            delay: number;
         }
 
         export class Client {
@@ -116,12 +131,28 @@ namespace Econtract {
             };
         }
 
+        class StreetAutocomplete extends Autocomplete {
+            public minChars:number = 3;
+            public transformResultCallback = function (response) {
+                return {
+                    suggestions: $.map(response, function (item) {
+                        return {value: item.name, data: item};
+                    })
+                }
+            };
+        }
+
         export class AddressAutocomplete {
             private endpoint:string;
             private city:City;
-            public postcodeElement:JQuery;
-            public cityElement:JQuery;
-            public streetElement:JQuery;
+            private street:Street;
+            private address:Address = {};
+            private postcodeElement:JQuery;
+            private cityElement:JQuery;
+            private streetElement:JQuery;
+            private houseNumberElement:JQuery;
+            private boxNumberElement:JQuery;
+            private addressElement:JQuery;
 
             constructor(endpoint?:string) {
                 this.endpoint = endpoint ? endpoint : Config.apiEndpoint;
@@ -129,51 +160,60 @@ namespace Econtract {
 
             public create(input:JQuery):void {
                 var self = this;
+                this.addressElement = $(input);
 
                 function setCityOnSelect(suggestion) {
                     self.setCity(suggestion.data);
                 }
 
-                if (this.postcodeElement) {
+                if (this.postcodeElement.length) {
                     var postcodeAutocomplete = new CityAutocomplete(this.endpoint + '/cities', 'postcode');
                     postcodeAutocomplete.onSelectCallback = setCityOnSelect;
                     postcodeAutocomplete.create(this.postcodeElement);
                 }
 
-                if (this.cityElement) {
+                if (this.cityElement.length) {
                     var cityAutocomplete = new CityAutocomplete(this.endpoint + '/cities', 'name');
                     cityAutocomplete.onSelectCallback = setCityOnSelect;
                     cityAutocomplete.minChars = 2;
                     cityAutocomplete.create(this.cityElement);
                 }
 
+                if (this.houseNumberElement.length) {
+                    this.houseNumberElement.on('change', function () {
+                        self.updateAddress();
+                    });
+                }
+
+                if (this.boxNumberElement.length) {
+                    this.boxNumberElement.on('change', function () {
+                        self.updateAddress();
+                    });
+                }
+
                 if (this.postcodeElement.val()) {
                     var client = new Client();
-                    client.findOneCityByPostcode(this.postcodeElement.val(), function (city:City) {
+                    client.findCitiesByPostcode(this.postcodeElement.val(), function (cities) {
                         for (var i in cities) {
                             if (cities[i].name.toLowerCase() == self.cityElement.val().toLowerCase()) {
                                 self.setCity(cities[i]);
                                 return;
                             }
                         }
-
-                        self.setCity(city);
+                        if (cities.length > 0) {
+                            self.setCity(cities[0]);
+                        }
                     });
                 } else {
                     this.setCity(null);
                 }
-            }
 
-            private static streetTransformResultCallback(response) {
-                return {
-                    suggestions: $.map(response, function (item) {
-                        return {value: item.name, data: item};
-                    })
-                }
+                self.updateAddress();
             }
 
             public setCity(city:City) {
-                if (this.streetElement) {
+                var self = this;
+                if (this.streetElement.length) {
                     if (this.city && city) {
                         if (city.id != this.city.id) {
                             this.streetElement.val('');
@@ -182,19 +222,56 @@ namespace Econtract {
                     this.streetElement.prop('readonly', !city);
                 }
 
+                this.houseNumberElement.prop('readonly', !city);
+                this.boxNumberElement.prop('readonly', !city);
+
                 this.city = city;
 
                 if (city) {
                     this.cityElement.val(city.name);
                     this.postcodeElement.val(city.postcode);
-                    if (this.streetElement) {
-                        var autocomplete = new Autocomplete(this.endpoint + '/streets', 'name');
-                        autocomplete.transformResultCallback = AddressAutocomplete.streetTransformResultCallback;
-                        autocomplete.minChars = 3;
-                        autocomplete.addParam("city_id", this.city.id);
+                    if (this.streetElement.length) {
+                        var autocomplete;
+                        if (autocomplete = this.streetElement.data('autocomplete')) {
+                            autocomplete.dispose();
+                        }
+                        autocomplete = new StreetAutocomplete(this.endpoint + '/streets', 'name');
+                        autocomplete.addParam("postcode", this.city.postcode);
+                        autocomplete.onSelectCallback = function (suggestion) {
+                            self.setStreet(suggestion.data);
+                        };
                         autocomplete.create(this.streetElement);
-                        this.streetElement.focus();
+                        this.streetElement.focus().select();
                     }
+                }
+                this.updateAddress();
+            }
+
+            public setStreet(street:Street) {
+                if (street && this.street && street.id == this.street.id) {
+                    return;
+                }
+                this.street = street;
+                if (street && this.houseNumberElement.length) {
+                    this.houseNumberElement.focus();
+                }
+                this.updateAddress();
+            }
+
+            public updateAddress() {
+                this.address = {
+                    postcode: this.postcodeElement.val(),
+                    city: this.cityElement.val(),
+                    street: this.streetElement.val(),
+                    house_number: this.houseNumberElement.val(),
+                    box: this.boxNumberElement.val()
+                };
+
+                if (this.city) {
+                    this.addressElement.data('city', this.city);
+                }
+                if (this.street) {
+                    this.addressElement.data('street', this.street);
                 }
             }
         }
@@ -206,11 +283,17 @@ namespace Econtract {
         $(this).each(function (i, elem) {
             options = $.extend(Econtract.Toolbox.Config, options);
 
+            var elem = $(elem);
+
             var autocomplete = new Econtract.Toolbox.AddressAutocomplete(options.apiEndpoint);
             autocomplete.postcodeElement = $(options.postcodeSelector, elem);
             autocomplete.cityElement = $(options.citySelector, elem);
             autocomplete.streetElement = $(options.streetSelector, elem);
+            autocomplete.houseNumberElement = $(options.houseNumberSelector, elem);
+            autocomplete.boxNumberElement = $(options.boxNumberSelector, elem);
             autocomplete.create(elem);
+
+            elem.data('autocomplete', autocomplete);
         });
     };
 })(jQuery);

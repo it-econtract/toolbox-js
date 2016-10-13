@@ -21,6 +21,26 @@ $('#address').addressAutocomplete({
 </script>
 ```
 
+Retrieving address information
+---
+To retrieve address information after it has beed filled in by user:
+
+```
+var autocomplete = $('#address').data('autocomplete');
+
+console.log(autocomplete.city);
+// Object {id: 1024, language: "nl", latitude: 50.830001, longitude: 4.329999, name: "Bruxelles", parent: null, postcode: 1000, province:Object}
+
+console.log(autocomplete.street);
+// Object {city: "Brussel", city_id: 1024, id: 19080, language: "nl", locale: null, name: "Grote Markt", postcode: 1000, province: "Brussel", province_id: 1}
+
+console.log(autocomplete.address);
+// Object {postcode: 1000, city: "Brussel", street: "Marnixlaan", house_number: "12", box: "3"}
+```
+
+*WARNING*: Properties `autocomplete.city` and `autocomplete.street` might be undefined if toolbox API doesn't have an information about city or street entered.
+Property `autocomplete.address` always exists and have values coresponding to form input values.
+
 Global configuration
 ---
 You can change the global configuration in this way:

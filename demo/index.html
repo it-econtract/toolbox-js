@@ -18,10 +18,29 @@
         <div class="col-sm-2">
             <input class="form-control postcode" type="text" name="postcode" placeholder="Postcode" />
         </div>
-        <div class="col-sm-5">
+        <div class="col-sm-4">
             <input class="form-control city" type="text" name="city" placeholder="City" />
         </div>
-        <div class="col-sm-5">
+        <div class="col-sm-4">
+            <input class="form-control street" type="text" name="city" placeholder="Street" />
+        </div>
+        <div class="col-sm-1">
+            <input class="form-control house-number" type="text" name="city" placeholder="House nr" value="" />
+        </div>
+        <div class="col-sm-1">
+            <input class="form-control box-number" type="text" name="city" placeholder="Box" value="" />
+        </div>
+    </div>
+
+    <h2>Address without house number and box</h2>
+    <div class="row" id="address-partial">
+        <div class="col-sm-2">
+            <input class="form-control postcode" type="text" name="postcode" placeholder="Postcode" />
+        </div>
+        <div class="col-sm-4">
+            <input class="form-control city" type="text" name="city" placeholder="City" />
+        </div>
+        <div class="col-sm-4">
             <input class="form-control street" type="text" name="city" placeholder="Street" />
         </div>
     </div>
@@ -29,13 +48,19 @@
     <h2>Address prefilled</h2>
     <div class="row" id="address-prefilled">
         <div class="col-sm-2">
-            <input class="form-control postal-code" type="text" name="postcode" placeholder="Postcode" value="2321" />
+            <input class="form-control postal-code" type="text" name="postcode" placeholder="Postcode" value="1000" />
         </div>
-        <div class="col-sm-5">
-            <input class="form-control city" type="text" name="city" placeholder="City" value="Meer" />
+        <div class="col-sm-4">
+            <input class="form-control city" type="text" name="city" placeholder="City" value="BRUXelles" />
         </div>
-        <div class="col-sm-5">
-            <input class="form-control street" type="text" name="city" placeholder="Street" value="Bieshof" />
+        <div class="col-sm-4">
+            <input class="form-control street" type="text" name="city" placeholder="Street" value="Grote Markt" />
+        </div>
+        <div class="col-sm-1">
+            <input class="form-control house-number" type="text" name="city" placeholder="House nr" value="12" />
+        </div>
+        <div class="col-sm-1">
+            <input class="form-control box-number" type="text" name="city" placeholder="Box" value="2" />
         </div>
     </div>
 </div>
@@ -44,6 +69,7 @@
     Econtract.Toolbox.Config.apiEndpoint = 'https://toolbox.econtract.be';
     Econtract.Toolbox.Config.apiKey = "";
     $('#address-empty').addressAutocomplete();
+    $('#address-partial').addressAutocomplete();
     $('#address-prefilled').addressAutocomplete({
         postcodeSelector: '.postal-code'
     });

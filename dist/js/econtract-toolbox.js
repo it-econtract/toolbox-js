@@ -13,6 +13,8 @@ var Econtract;
             postcodeSelector: ".postcode",
             citySelector: ".city",
             streetSelector: ".street",
+            houseNumberSelector: ".house-number",
+            boxNumberSelector: ".box-number",
             delay: 0,
         };
         var Client = (function () {
@@ -94,51 +96,75 @@ var Econtract;
             }
             return CityAutocomplete;
         }(Autocomplete));
+        var StreetAutocomplete = (function (_super) {
+            __extends(StreetAutocomplete, _super);
+            function StreetAutocomplete() {
+                _super.apply(this, arguments);
+                this.minChars = 3;
+                this.transformResultCallback = function (response) {
+                    return {
+                        suggestions: $.map(response, function (item) {
+                            return { value: item.name, data: item };
+                        })
+                    };
+                };
+            }
+            return StreetAutocomplete;
+        }(Autocomplete));
         var AddressAutocomplete = (function () {
             function AddressAutocomplete(endpoint) {
+                this.address = {};
                 this.endpoint = endpoint ? endpoint : Toolbox.Config.apiEndpoint;
             }
             AddressAutocomplete.prototype.create = function (input) {
                 var self = this;
+                this.addressElement = $(input);
                 function setCityOnSelect(suggestion) {
                     self.setCity(suggestion.data);
                 }
-                if (this.postcodeElement) {
+                if (this.postcodeElement.length) {
                     var postcodeAutocomplete = new CityAutocomplete(this.endpoint + '/cities', 'postcode');
                     postcodeAutocomplete.onSelectCallback = setCityOnSelect;
                     postcodeAutocomplete.create(this.postcodeElement);
                 }
-                if (this.cityElement) {
+                if (this.cityElement.length) {
                     var cityAutocomplete = new CityAutocomplete(this.endpoint + '/cities', 'name');
                     cityAutocomplete.onSelectCallback = setCityOnSelect;
                     cityAutocomplete.minChars = 2;
                     cityAutocomplete.create(this.cityElement);
                 }
+                if (this.houseNumberElement.length) {
+                    this.houseNumberElement.on('change', function () {
+                        self.updateAddress();
+                    });
+                }
+                if (this.boxNumberElement.length) {
+                    this.boxNumberElement.on('change', function () {
+                        self.updateAddress();
+                    });
+                }
                 if (this.postcodeElement.val()) {
                     var client = new Client();
-                    client.findOneCityByPostcode(this.postcodeElement.val(), function (city) {
+                    client.findCitiesByPostcode(this.postcodeElement.val(), function (cities) {
                         for (var i in cities) {
                             if (cities[i].name.toLowerCase() == self.cityElement.val().toLowerCase()) {
                                 self.setCity(cities[i]);
                                 return;
                             }
                         }
-                        self.setCity(city);
+                        if (cities.length > 0) {
+                            self.setCity(cities[0]);
+                        }
                     });
                 }
                 else {
                     this.setCity(null);
                 }
-            };
-            AddressAutocomplete.streetTransformResultCallback = function (response) {
-                return {
-                    suggestions: $.map(response, function (item) {
-                        return { value: item.name, data: item };
-                    })
-                };
+                self.updateAddress();
             };
             AddressAutocomplete.prototype.setCity = function (city) {
-                if (this.streetElement) {
+                var self = this;
+                if (this.streetElement.length) {
                     if (this.city && city) {
                         if (city.id != this.city.id) {
                             this.streetElement.val('');
@@ -146,18 +172,51 @@ var Econtract;
                     }
                     this.streetElement.prop('readonly', !city);
                 }
+                this.houseNumberElement.prop('readonly', !city);
+                this.boxNumberElement.prop('readonly', !city);
                 this.city = city;
                 if (city) {
                     this.cityElement.val(city.name);
                     this.postcodeElement.val(city.postcode);
-                    if (this.streetElement) {
-                        var autocomplete = new Autocomplete(this.endpoint + '/streets', 'name');
-                        autocomplete.transformResultCallback = AddressAutocomplete.streetTransformResultCallback;
-                        autocomplete.minChars = 3;
-                        autocomplete.addParam("city_id", this.city.id);
+                    if (this.streetElement.length) {
+                        var autocomplete;
+                        if (autocomplete = this.streetElement.data('autocomplete')) {
+                            autocomplete.dispose();
+                        }
+                        autocomplete = new StreetAutocomplete(this.endpoint + '/streets', 'name');
+                        autocomplete.addParam("postcode", this.city.postcode);
+                        autocomplete.onSelectCallback = function (suggestion) {
+                            self.setStreet(suggestion.data);
+                        };
                         autocomplete.create(this.streetElement);
-                        this.streetElement.focus();
+                        this.streetElement.focus().select();
                     }
+                }
+                this.updateAddress();
+            };
+            AddressAutocomplete.prototype.setStreet = function (street) {
+                if (street && this.street && street.id == this.street.id) {
+                    return;
+                }
+                this.street = street;
+                if (street && this.houseNumberElement.length) {
+                    this.houseNumberElement.focus();
+                }
+                this.updateAddress();
+            };
+            AddressAutocomplete.prototype.updateAddress = function () {
+                this.address = {
+                    postcode: this.postcodeElement.val(),
+                    city: this.cityElement.val(),
+                    street: this.streetElement.val(),
+                    house_number: this.houseNumberElement.val(),
+                    box: this.boxNumberElement.val()
+                };
+                if (this.city) {
+                    this.addressElement.data('city', this.city);
+                }
+                if (this.street) {
+                    this.addressElement.data('street', this.street);
                 }
             };
             return AddressAutocomplete;
@@ -169,11 +228,15 @@ var Econtract;
     $.fn.addressAutocomplete = function (options) {
         $(this).each(function (i, elem) {
             options = $.extend(Econtract.Toolbox.Config, options);
+            var elem = $(elem);
             var autocomplete = new Econtract.Toolbox.AddressAutocomplete(options.apiEndpoint);
             autocomplete.postcodeElement = $(options.postcodeSelector, elem);
             autocomplete.cityElement = $(options.citySelector, elem);
             autocomplete.streetElement = $(options.streetSelector, elem);
+            autocomplete.houseNumberElement = $(options.houseNumberSelector, elem);
+            autocomplete.boxNumberElement = $(options.boxNumberSelector, elem);
             autocomplete.create(elem);
+            elem.data('autocomplete', autocomplete);
         });
     };
 })(jQuery);

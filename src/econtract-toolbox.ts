@@ -107,6 +107,27 @@ namespace Econtract {
             }
 
             public create(input:JQuery) {
+                var createMatcher = function(q, flags) {
+                    q = '(\\b|^)('+$.Autocomplete.utils.escapeRegExChars(q)+')';
+                    q = q.replace(/[eéèêëEÉÈÊË]/i,'[eéèêëEÉÈÊË]');
+                    q = q.replace(/[aàâäAÀÁÂÃÄÅÆ]/i,'[aàâäAÀÁÂÃÄÅÆ]');
+                    q = q.replace(/[cçC]/i,'[cçC]');
+                    q = q.replace(/[iïîIÌÍÎÏ]/i,'[iïîIÌÍÎÏ]');
+                    q = q.replace(/[oôöÒÓÔÕÖ]/i,'[oôöÒÓÔÕÖ]');
+                    q = q.replace(/[uüûUÜÛÙÚ]/i,'[uüûUÜÛÙÚ]');
+                    q = q.replace(/[yYÿÝ]/i,'[yYÿÝ]');
+
+                    return new RegExp(q, flags);
+                };
+
+                var autocompleteLookup = function (suggestion, originalQuery, queryLowerCase) {
+                    return suggestion.value.toLowerCase().match(createMatcher(queryLowerCase, 'gi'));
+                };
+
+                var autocompleteFormatResult = function (suggestion, currentValue) {
+                    return suggestion.value.replace(createMatcher(currentValue, 'gi'), '<strong>$1$2<\/strong>');
+                };
+
                 return input.devbridgeAutocomplete({
                     autoSelectFirst: true,
                     paramName: this.paramName,
@@ -116,7 +137,9 @@ namespace Econtract {
                     transformResult: this.transformResultCallback,
                     onSelect: this.onSelectCallback,
                     params: this.params,
-                    minChars: this.minChars
+                    minChars: this.minChars,
+                    lookupFilter: autocompleteLookup,
+                    formatResult: autocompleteFormatResult,
                 });
             }
         }

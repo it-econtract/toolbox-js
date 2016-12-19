@@ -10,12 +10,17 @@ var Econtract;
         Toolbox.Config = {
             apiEndpoint: '',
             apiKey: '',
+            delay: 0,
+        };
+        Toolbox.AddressConfig = {
             postcodeSelector: ".postcode",
             citySelector: ".city",
             streetSelector: ".street",
             houseNumberSelector: ".house-number",
             boxNumberSelector: ".box-number",
-            delay: 0,
+        };
+        Toolbox.EanConfig = {
+            addressSelector: ".address",
         };
         var Client = (function () {
             function Client(endpoint) {
@@ -50,14 +55,44 @@ var Econtract;
                     callback([]);
                 });
             };
+            Client.prototype.findAddresses = function (address, callback) {
+                this.get('/addresses', {
+                    postcode: address.postcode,
+                    city: address.city,
+                    street: address.street,
+                    house_number: address.house_number,
+                    box: address.box
+                })
+                    .success(function (response) {
+                    if (response.length) {
+                        callback(response);
+                    }
+                    else {
+                        callback([]);
+                    }
+                }).error(function () {
+                    callback([]);
+                });
+            };
+            Client.prototype.findConnectionsByAddressId = function (addressId, callback) {
+                this.get('/connections', { address_id: addressId })
+                    .success(function (response) {
+                    if (response.length) {
+                        callback(response);
+                    }
+                    else {
+                        callback([]);
+                    }
+                }).error(function () {
+                    callback([]);
+                });
+            };
             return Client;
         }());
         Toolbox.Client = Client;
         var Autocomplete = (function () {
             function Autocomplete(endpoint, paramName) {
-                this.onSelectCallback = function (suggestion) {
-                    this.element.trigger('selected', suggestion);
-                };
+                if (paramName === void 0) { paramName = "name"; }
                 this.params = {};
                 this.delay = Toolbox.Config.delay;
                 this.minChars = 1;
@@ -72,9 +107,10 @@ var Econtract;
             };
             Autocomplete.prototype.create = function (input) {
                 if (this.element) {
-                    throw "Autocomplete already created";
+                    throw new Error("Autocomplete already created");
                 }
                 this.element = input;
+                var self = this;
                 var createMatcher = function (q, flags) {
                     q = '(\\b|^)(' + $.Autocomplete.utils.escapeRegExChars(q) + ')';
                     q = q.replace(/[eéèêëEÉÈÊË]/i, '[eéèêëEÉÈÊË]');
@@ -92,15 +128,17 @@ var Econtract;
                 var autocompleteFormatResult = function (suggestion, currentValue) {
                     return suggestion.value.replace(createMatcher(currentValue, 'gi'), '<strong>$1$2<\/strong>');
                 };
-                return input.devbridgeAutocomplete({
+                return this.internalAutocomplete = input.devbridgeAutocomplete({
                     autoSelectFirst: true,
                     paramName: this.paramName,
                     serviceUrl: this.endpoint,
                     dataType: 'json',
                     deferRequestBy: this.delay,
                     transformResult: this.transformResultCallback,
-                    onSelect: this.onSelectCallback,
-                    params: this.params,
+                    onSelect: function (suggestion) {
+                        self.element.trigger('selected', [suggestion.data]);
+                    },
+                    params: self.params,
                     minChars: this.minChars,
                     lookupFilter: autocompleteLookup,
                     formatResult: autocompleteFormatResult,
@@ -140,9 +178,11 @@ var Econtract;
         }(Autocomplete));
         var EanAutocomplete = (function (_super) {
             __extends(EanAutocomplete, _super);
-            function EanAutocomplete() {
-                _super.apply(this, arguments);
-                this.minChars = 1;
+            function EanAutocomplete(endpoint) {
+                _super.call(this, endpoint + '/connections', 'ean');
+                this.minChars = 0;
+                this.autocompleted = false;
+                this.suggestions = [];
                 this.transformResultCallback = function (response) {
                     return {
                         suggestions: $.map(response, function (item) {
@@ -153,34 +193,77 @@ var Econtract;
             }
             EanAutocomplete.prototype.create = function (input) {
                 var api = _super.prototype.create.call(this, input);
-                this.postcode;
+                var self = this;
+                var timeout;
+                var suggestions = [];
+                api.autocomplete('setOptions', {
+                    lookup: function (query, done) {
+                        done({
+                            suggestions: self.suggestions
+                        });
+                    },
+                });
+                this.element.on('change', function () {
+                    self.autocompleted = false;
+                });
+                this.addressElement.on('changed', function (event, address) {
+                    for (var i in address) {
+                        if (!address[i]) {
+                            delete address[i];
+                        }
+                    }
+                    if (timeout) {
+                        clearTimeout(timeout);
+                    }
+                    timeout = setTimeout(function () {
+                        var client = new Client();
+                        client.findAddresses(address, function (addresses) {
+                            if (addresses.length > 0) {
+                                client.findConnectionsByAddressId(addresses[0].id, function (connections) {
+                                    if (connections.length == 1) {
+                                        self.element.val(connections[0].ean);
+                                        self.autocompleted = true;
+                                    }
+                                    else if (self.autocompleted) {
+                                        self.element.val('');
+                                    }
+                                    self.suggestions = $.map(connections, function (item) {
+                                        return { value: item.ean.toString(), data: item };
+                                    });
+                                });
+                            }
+                            else if (self.autocompleted) {
+                                self.element.val('');
+                            }
+                        });
+                    }, 200);
+                });
                 return api;
             };
             return EanAutocomplete;
         }(Autocomplete));
+        Toolbox.EanAutocomplete = EanAutocomplete;
         var AddressAutocomplete = (function () {
             function AddressAutocomplete(endpoint) {
                 this.address = {};
                 this.endpoint = endpoint ? endpoint : Toolbox.Config.apiEndpoint;
             }
             AddressAutocomplete.prototype.create = function (input) {
-                console.log(input, 'rec');
                 var self = this;
                 this.addressElement = $(input);
-                function setCityOnSelect(suggestion) {
-                    self.setCity(suggestion.data);
-                }
                 if (this.postcodeElement.length) {
                     var postcodeAutocomplete = new CityAutocomplete(this.endpoint + '/cities', 'postcode');
                     postcodeAutocomplete.create(this.postcodeElement);
-                    this.postcodeElement.on('selected', function (suggestion) {
-                        console.log(suggestion);
+                    this.postcodeElement.on('selected', function (event, suggestion) {
+                        self.setCity(suggestion);
                     });
                 }
                 if (this.cityElement.length) {
                     var cityAutocomplete = new CityAutocomplete(this.endpoint + '/cities', 'name');
-                    cityAutocomplete.onSelectCallback = setCityOnSelect;
                     cityAutocomplete.create(this.cityElement);
+                    this.cityElement.on('selected', function (event, suggestion) {
+                        self.setCity(suggestion);
+                    });
                 }
                 if (this.houseNumberElement.length) {
                     this.houseNumberElement.on('change', function () {
@@ -195,15 +278,17 @@ var Econtract;
                 if (this.postcodeElement.val()) {
                     var client = new Client();
                     client.findCitiesByPostcode(this.postcodeElement.val(), function (cities) {
+                        self.loading = true;
                         for (var i in cities) {
                             if (cities[i].name.toLowerCase() == self.cityElement.val().toLowerCase()) {
                                 self.setCity(cities[i]);
-                                return;
+                                break;
                             }
                         }
                         if (cities.length > 0) {
                             self.setCity(cities[0]);
                         }
+                        self.loading = false;
                     });
                 }
                 else {
@@ -234,11 +319,13 @@ var Econtract;
                         }
                         autocomplete = new StreetAutocomplete(this.endpoint + '/streets', 'name');
                         autocomplete.addParam("postcode", this.city.postcode);
-                        autocomplete.onSelectCallback = function (suggestion) {
-                            self.setStreet(suggestion.data);
-                        };
                         autocomplete.create(this.streetElement);
-                        this.streetElement.focus().select();
+                        this.streetElement.on('selected', function (event, suggestion) {
+                            self.setStreet(suggestion);
+                        });
+                        if (!this.loading) {
+                            this.streetElement.focus().select();
+                        }
                     }
                 }
                 this.updateAddress();
@@ -248,7 +335,7 @@ var Econtract;
                     return;
                 }
                 this.street = street;
-                if (street && this.houseNumberElement.length) {
+                if (street && this.houseNumberElement.length && !this.loading) {
                     this.houseNumberElement.focus();
                 }
                 this.updateAddress();
@@ -267,6 +354,7 @@ var Econtract;
                 if (this.street) {
                     this.addressElement.data('street', this.street);
                 }
+                this.addressElement.trigger('changed', [this.address]);
             };
             return AddressAutocomplete;
         }());
@@ -276,7 +364,7 @@ var Econtract;
 (function ($) {
     $.fn.addressAutocomplete = function (options) {
         $(this).each(function (i, elem) {
-            options = $.extend(Econtract.Toolbox.Config, options);
+            options = $.extend(Econtract.Toolbox.Config, Econtract.Toolbox.AddressConfig, options);
             var elem = $(elem);
             var autocomplete = new Econtract.Toolbox.AddressAutocomplete(options.apiEndpoint);
             autocomplete.postcodeElement = $(options.postcodeSelector, elem);
@@ -289,6 +377,17 @@ var Econtract;
         });
     };
     $.fn.eanAutocomplete = function (options) {
+        $(this).each(function (i, elem) {
+            options = $.extend(Econtract.Toolbox.Config, Econtract.Toolbox.EanConfig, options);
+            var elem = $(elem);
+            var autocomplete = new Econtract.Toolbox.EanAutocomplete(options.apiEndpoint);
+            autocomplete.addressElement = $(options.addressSelector, elem);
+            if (autocomplete.addressElement.length == 0) {
+                autocomplete.addressElement = $(options.addressSelector);
+            }
+            autocomplete.create(elem);
+            elem.data('autocomplete', autocomplete);
+        });
     };
 })(jQuery);
 //# sourceMappingURL=econtract-toolbox.js.map

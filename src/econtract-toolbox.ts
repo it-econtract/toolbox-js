@@ -3,18 +3,24 @@
 
 namespace Econtract {
     export namespace Toolbox {
-        export var Config:AddressAutocompleteOptions = {
+        export var Config:AutocompleteOptions = {
             apiEndpoint: '',                      // Toolbox API endpoint
             apiKey: '',                           // Toolbox API key
+            delay: 0,                             // Delay autocomplete requests by this amount of miliseconds
+        };
+        export var AddressConfig:AddressAutocompleteOptions = {
             postcodeSelector: ".postcode",        // Postcode field selector (relative to address container)
             citySelector: ".city",                // City field selector (relative to address container)
             streetSelector: ".street",            // Street field selector (relative to address container)
             houseNumberSelector: ".house-number", // Street field selector (relative to address container)
             boxNumberSelector: ".box-number",     // Street field selector (relative to address container)
-            delay: 0,                             // Delay autocomplete requests by this amount of miliseconds
+        };
+        export var EanConfig:EanAutocompleteOptions = {
+            addressSelector: ".address",        // Absolute address container selector
         };
 
         interface Address {
+            id:number,
             city:string;
             postcode:number;
             street:string;
@@ -33,7 +39,7 @@ namespace Econtract {
             postcode:number;
         }
 
-        export interface AddressAutocompleteOptions {
+        export interface AddressAutocompleteOptions extends AutocompleteOptions {
             apiEndpoint : string;
             apiKey: string,
             postcodeSelector : string;
@@ -42,6 +48,9 @@ namespace Econtract {
             houseNumberSelector : string;
             boxNumberSelector : string;
             delay: number;
+        }
+        export interface EanAutocompleteOptions extends AutocompleteOptions {
+            addressSelector : string
         }
 
         export class Client {
@@ -83,18 +92,50 @@ namespace Econtract {
                         callback([]);
                     });
             }
+
+            public findAddresses(address:Address, callback:void) {
+                this.get('/addresses', {
+                    postcode: address.postcode,
+                    city: address.city,
+                    street: address.street,
+                    house_number: address.house_number,
+                    box: address.box
+                })
+                    .success(function (response) {
+                        if (response.length) {
+                            callback(response);
+                        } else {
+                            callback([]);
+                        }
+                    }).error(function () {
+                        callback([]);
+                    });
+            }
+            public findConnectionsByAddressId(addressId, callback:void) {
+                this.get('/connections', { address_id: addressId })
+                    .success(function (response) {
+                        if (response.length) {
+                            callback(response);
+                        } else {
+                            callback([]);
+                        }
+                    }).error(function () {
+                        callback([]);
+                    });
+            }
         }
 
         class Autocomplete {
+            public element:jQuery;
             public paramName:string;
             public transformResultCallback;
-            public onSelectCallback;
             public endpoint:string;
             private params:any = {};
             public delay:number = Config.delay;
             public minChars:number = 1;
+            protected internalAutocomplete;
 
-            constructor(endpoint:string, paramName:string) {
+            constructor(endpoint:string, paramName:string = "name") {
                 this.paramName = paramName;
                 this.endpoint = endpoint;
                 this.params = {
@@ -107,6 +148,12 @@ namespace Econtract {
             }
 
             public create(input:JQuery) {
+                if (this.element) {
+                    throw new Error("Autocomplete already created");
+                }
+                this.element = input;
+                var self = this;
+
                 var createMatcher = function(q, flags) {
                     q = '(\\b|^)('+$.Autocomplete.utils.escapeRegExChars(q)+')';
                     q = q.replace(/[eéèêëEÉÈÊË]/i,'[eéèêëEÉÈÊË]');
@@ -128,15 +175,17 @@ namespace Econtract {
                     return suggestion.value.replace(createMatcher(currentValue, 'gi'), '<strong>$1$2<\/strong>');
                 };
 
-                return input.devbridgeAutocomplete({
+                return this.internalAutocomplete = input.devbridgeAutocomplete({
                     autoSelectFirst: true,
                     paramName: this.paramName,
                     serviceUrl: this.endpoint,
                     dataType: 'json',
                     deferRequestBy: this.delay,
                     transformResult: this.transformResultCallback,
-                    onSelect: this.onSelectCallback,
-                    params: this.params,
+                    onSelect: function (suggestion) {
+                        self.element.trigger('selected', [suggestion.data]);
+                    },
+                    params: self.params,
                     minChars: this.minChars,
                     lookupFilter: autocompleteLookup,
                     formatResult: autocompleteFormatResult,
@@ -145,6 +194,7 @@ namespace Econtract {
         }
 
         class CityAutocomplete extends Autocomplete {
+            public minChars:number = 2;
             public transformResultCallback = function (response) {
                 return {
                     suggestions: $.map(response, function (item) {
@@ -165,6 +215,72 @@ namespace Econtract {
             };
         }
 
+        export class EanAutocomplete extends Autocomplete {
+            public minChars:number = 0;
+            private addressElement:JQuery;
+            private autocompleted:boolean = false;
+            private suggestions:Array = [];
+            public constructor (endpoint) {
+                super(endpoint + '/connections', 'ean');
+            }
+            public transformResultCallback = function (response) {
+                return {
+                    suggestions: $.map(response, function (item) {
+                        return {value: item.ean, data: item};
+                    })
+                }
+            };
+            public create(input:JQuery) {
+                var api = super.create(input);
+                var self = this;
+                var timeout;
+                var suggestions = [];
+                api.autocomplete('setOptions', {
+                    lookup: function (query, done) {
+                        done({
+                            suggestions: self.suggestions
+                        });
+                    },
+                });
+                this.element.on('change', function () {
+                    self.autocompleted = false;
+                });
+
+                this.addressElement.on('changed', function (event, address:Address) {
+                    for (var i in address) {
+                        if (!address[i]) {
+                            delete address[i];
+                        }
+                    }
+                    if (timeout) {
+                        clearTimeout(timeout);
+                    }
+                    timeout = setTimeout(function () {
+                        var client = new Client();
+                        client.findAddresses(address, function (addresses) {
+                            if (addresses.length > 0) {
+                                client.findConnectionsByAddressId(addresses[0].id, function (connections) {
+                                    if (connections.length == 1) {
+                                        self.element.val(connections[0].ean);
+                                        self.autocompleted = true;
+                                    } else if (self.autocompleted) {
+                                        self.element.val('');
+                                    }
+                                    self.suggestions = $.map(connections, function (item) {
+                                        return {value: item.ean.toString(), data: item};
+                                    });
+                                });
+                            } else if (self.autocompleted) {
+                                self.element.val('');
+                            }
+                        });
+                    }, 200);
+                });
+
+                return api;
+            }
+        }
+
         export class AddressAutocomplete {
             private endpoint:string;
             private city:City;
@@ -176,6 +292,7 @@ namespace Econtract {
             private houseNumberElement:JQuery;
             private boxNumberElement:JQuery;
             private addressElement:JQuery;
+            private loading:boolean;
 
             constructor(endpoint?:string) {
                 this.endpoint = endpoint ? endpoint : Config.apiEndpoint;
@@ -185,21 +302,20 @@ namespace Econtract {
                 var self = this;
                 this.addressElement = $(input);
 
-                function setCityOnSelect(suggestion) {
-                    self.setCity(suggestion.data);
-                }
-
                 if (this.postcodeElement.length) {
                     var postcodeAutocomplete = new CityAutocomplete(this.endpoint + '/cities', 'postcode');
-                    postcodeAutocomplete.onSelectCallback = setCityOnSelect;
                     postcodeAutocomplete.create(this.postcodeElement);
+                    this.postcodeElement.on('selected', function (event, suggestion) {
+                        self.setCity(suggestion);
+                    })
                 }
 
                 if (this.cityElement.length) {
                     var cityAutocomplete = new CityAutocomplete(this.endpoint + '/cities', 'name');
-                    cityAutocomplete.onSelectCallback = setCityOnSelect;
-                    cityAutocomplete.minChars = 2;
                     cityAutocomplete.create(this.cityElement);
+                    this.cityElement.on('selected', function (event, suggestion) {
+                        self.setCity(suggestion);
+                    })
                 }
 
                 if (this.houseNumberElement.length) {
@@ -217,15 +333,17 @@ namespace Econtract {
                 if (this.postcodeElement.val()) {
                     var client = new Client();
                     client.findCitiesByPostcode(this.postcodeElement.val(), function (cities) {
+                        self.loading = true;
                         for (var i in cities) {
                             if (cities[i].name.toLowerCase() == self.cityElement.val().toLowerCase()) {
                                 self.setCity(cities[i]);
-                                return;
+                                break;
                             }
                         }
                         if (cities.length > 0) {
                             self.setCity(cities[0]);
                         }
+                        self.loading = false;
                     });
                 } else {
                     this.setCity(null);
@@ -247,7 +365,6 @@ namespace Econtract {
 
                 this.houseNumberElement.prop('readonly', !city);
                 this.boxNumberElement.prop('readonly', !city);
-
                 this.city = city;
 
                 if (city) {
@@ -260,11 +377,14 @@ namespace Econtract {
                         }
                         autocomplete = new StreetAutocomplete(this.endpoint + '/streets', 'name');
                         autocomplete.addParam("postcode", this.city.postcode);
-                        autocomplete.onSelectCallback = function (suggestion) {
-                            self.setStreet(suggestion.data);
-                        };
                         autocomplete.create(this.streetElement);
-                        this.streetElement.focus().select();
+                        this.streetElement.on('selected', function (event, suggestion) {
+                            self.setStreet(suggestion);
+                        });
+
+                        if (!this.loading) {
+                            this.streetElement.focus().select();
+                        }
                     }
                 }
                 this.updateAddress();
@@ -275,7 +395,7 @@ namespace Econtract {
                     return;
                 }
                 this.street = street;
-                if (street && this.houseNumberElement.length) {
+                if (street && this.houseNumberElement.length && !this.loading) {
                     this.houseNumberElement.focus();
                 }
                 this.updateAddress();
@@ -296,6 +416,8 @@ namespace Econtract {
                 if (this.street) {
                     this.addressElement.data('street', this.street);
                 }
+
+                this.addressElement.trigger('changed', [this.address]);
             }
         }
     }
@@ -304,7 +426,7 @@ namespace Econtract {
 (function ($) {
     $.fn.addressAutocomplete = function (options:Econtract.Toolbox.AddressAutocompleteOptions) {
         $(this).each(function (i, elem) {
-            options = $.extend(Econtract.Toolbox.Config, options);
+            options = $.extend(Econtract.Toolbox.Config, Econtract.Toolbox.AddressConfig, options);
 
             var elem = $(elem);
 
@@ -319,5 +441,22 @@ namespace Econtract {
             elem.data('autocomplete', autocomplete);
         });
     };
+
+    $.fn.eanAutocomplete = function (options:Econtract.Toolbox.EanAutocompleteOptions) {
+        $(this).each(function (i, elem) {
+            options = $.extend(Econtract.Toolbox.Config, Econtract.Toolbox.EanConfig, options);
+
+            var elem = $(elem);
+
+            var autocomplete = new Econtract.Toolbox.EanAutocomplete(options.apiEndpoint);
+            autocomplete.addressElement = $(options.addressSelector, elem);
+            if (autocomplete.addressElement.length == 0) {
+                autocomplete.addressElement = $(options.addressSelector);
+            }
+            autocomplete.create(elem);
+
+            elem.data('autocomplete', autocomplete);
+        });
+    }
 })(jQuery);
 

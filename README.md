@@ -56,6 +56,42 @@ Econtract.Toolbox.Config = {
 
 Than it's possible to omit the apiEndpoint option when creating address autocomplete.
 
+Advanced usage
+--------------
+
+```
+<div class="row">
+    <div class="col-sm-6">
+        <div class="row" id="address-with-ean-empty">
+            <div class="col-sm-4">
+                <input class="form-control postcode" type="text" name="postcode" placeholder="Postcode" value="" />
+            </div>
+            <div class="col-sm-8">
+                <input class="form-control city" type="text" name="city" placeholder="City" value="" />
+            </div>
+            <div class="col-sm-8">
+                <input class="form-control street" type="text" name="city" placeholder="Street" value="" />
+            </div>
+            <div class="col-sm-2">
+                <input class="form-control house-number" type="text" name="city" placeholder="House nr" value="" />
+            </div>
+            <div class="col-sm-2">
+                <input class="form-control box-number" type="text" name="city" placeholder="Box" value="" />
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6">
+        <div class="col-sm-12">
+            <input id="ean-for-address-with-ean-empty" class="form-control ean" type="text" name="ean" placeholder="EAN" value="" />
+        </div>
+    </div>
+<script>
+$('#ean-for-address-with-ean').eanAutocomplete({
+    addressSelector: '#address-with-ean'
+});
+</script>
+```
+
 Development
 ===
 

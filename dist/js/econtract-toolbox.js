@@ -55,6 +55,9 @@ var Econtract;
         Toolbox.Client = Client;
         var Autocomplete = (function () {
             function Autocomplete(endpoint, paramName) {
+                this.onSelectCallback = function (suggestion) {
+                    this.element.trigger('selected', suggestion);
+                };
                 this.params = {};
                 this.delay = Toolbox.Config.delay;
                 this.minChars = 1;
@@ -68,6 +71,10 @@ var Econtract;
                 this.params[name] = value;
             };
             Autocomplete.prototype.create = function (input) {
+                if (this.element) {
+                    throw "Autocomplete already created";
+                }
+                this.element = input;
                 var createMatcher = function (q, flags) {
                     q = '(\\b|^)(' + $.Autocomplete.utils.escapeRegExChars(q) + ')';
                     q = q.replace(/[eéèêëEÉÈÊË]/i, '[eéèêëEÉÈÊË]');
@@ -105,6 +112,7 @@ var Econtract;
             __extends(CityAutocomplete, _super);
             function CityAutocomplete() {
                 _super.apply(this, arguments);
+                this.minChars = 2;
                 this.transformResultCallback = function (response) {
                     return {
                         suggestions: $.map(response, function (item) {
@@ -130,12 +138,33 @@ var Econtract;
             }
             return StreetAutocomplete;
         }(Autocomplete));
+        var EanAutocomplete = (function (_super) {
+            __extends(EanAutocomplete, _super);
+            function EanAutocomplete() {
+                _super.apply(this, arguments);
+                this.minChars = 1;
+                this.transformResultCallback = function (response) {
+                    return {
+                        suggestions: $.map(response, function (item) {
+                            return { value: item.ean, data: item };
+                        })
+                    };
+                };
+            }
+            EanAutocomplete.prototype.create = function (input) {
+                var api = _super.prototype.create.call(this, input);
+                this.postcode;
+                return api;
+            };
+            return EanAutocomplete;
+        }(Autocomplete));
         var AddressAutocomplete = (function () {
             function AddressAutocomplete(endpoint) {
                 this.address = {};
                 this.endpoint = endpoint ? endpoint : Toolbox.Config.apiEndpoint;
             }
             AddressAutocomplete.prototype.create = function (input) {
+                console.log(input, 'rec');
                 var self = this;
                 this.addressElement = $(input);
                 function setCityOnSelect(suggestion) {
@@ -143,13 +172,14 @@ var Econtract;
                 }
                 if (this.postcodeElement.length) {
                     var postcodeAutocomplete = new CityAutocomplete(this.endpoint + '/cities', 'postcode');
-                    postcodeAutocomplete.onSelectCallback = setCityOnSelect;
                     postcodeAutocomplete.create(this.postcodeElement);
+                    this.postcodeElement.on('selected', function (suggestion) {
+                        console.log(suggestion);
+                    });
                 }
                 if (this.cityElement.length) {
                     var cityAutocomplete = new CityAutocomplete(this.endpoint + '/cities', 'name');
                     cityAutocomplete.onSelectCallback = setCityOnSelect;
-                    cityAutocomplete.minChars = 2;
                     cityAutocomplete.create(this.cityElement);
                 }
                 if (this.houseNumberElement.length) {
@@ -257,6 +287,8 @@ var Econtract;
             autocomplete.create(elem);
             elem.data('autocomplete', autocomplete);
         });
+    };
+    $.fn.eanAutocomplete = function (options) {
     };
 })(jQuery);
 //# sourceMappingURL=econtract-toolbox.js.map

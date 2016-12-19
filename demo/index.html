@@ -63,15 +63,79 @@
             <input class="form-control box-number" type="text" name="city" placeholder="Box" value="2" />
         </div>
     </div>
+
+    <h2>Address with EAN</h2>
+    <div class="row">
+        <div class="col-sm-6">
+            <div class="row" id="address-with-ean">
+                <div class="col-sm-4">
+                    <input class="form-control postcode" type="text" name="postcode" placeholder="Postcode" value="9000" />
+                </div>
+                <div class="col-sm-8">
+                    <input class="form-control city" type="text" name="city" placeholder="City" value="Gent" />
+                </div>
+                <div class="col-sm-8">
+                    <input class="form-control street" type="text" name="city" placeholder="Street" value="Schoonmeersstraat" />
+                </div>
+                <div class="col-sm-2">
+                    <input class="form-control house-number" type="text" name="city" placeholder="House nr" value="11" />
+                </div>
+                <div class="col-sm-2">
+                    <input class="form-control box-number" type="text" name="city" placeholder="Box" value="" />
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6">
+            <div class="col-sm-12">
+                <input id="ean-for-address-with-ean" class="form-control ean" type="text" name="ean" placeholder="EAN" value="" />
+            </div>
+        </div>
+    </div>
+    <h2>Empty address with EAN</h2>
+    <div class="row">
+        <div class="col-sm-6">
+            <div class="row" id="address-with-ean-empty">
+                <div class="col-sm-4">
+                    <input class="form-control postcode" type="text" name="postcode" placeholder="Postcode" value="" />
+                </div>
+                <div class="col-sm-8">
+                    <input class="form-control city" type="text" name="city" placeholder="City" value="" />
+                </div>
+                <div class="col-sm-8">
+                    <input class="form-control street" type="text" name="city" placeholder="Street" value="" />
+                </div>
+                <div class="col-sm-2">
+                    <input class="form-control house-number" type="text" name="city" placeholder="House nr" value="" />
+                </div>
+                <div class="col-sm-2">
+                    <input class="form-control box-number" type="text" name="city" placeholder="Box" value="" />
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6">
+            <div class="col-sm-12">
+                <input id="ean-for-address-with-ean-empty" class="form-control ean" type="text" name="ean" placeholder="EAN" value="" />
+            </div>
+        </div>
+    </div>
 </div>
 
 <script type="text/javascript">
-    Econtract.Toolbox.Config.apiEndpoint = 'https://toolbox.econtract.be';
-    Econtract.Toolbox.Config.apiKey = "";
+    //Econtract.Toolbox.Config.apiEndpoint = 'http://default.toolbox.staging-001.econtract.prvw.eu';
+    Econtract.Toolbox.Config.apiEndpoint = 'http://api.toolbox.lo';
+    Econtract.Toolbox.Config.apiKey = "I5MGUtMzU5NmMxM2JlNDE5M2IxNTg3ZG";
     $('#address-empty').addressAutocomplete();
     $('#address-partial').addressAutocomplete();
     $('#address-prefilled').addressAutocomplete({
         postcodeSelector: '.postal-code'
+    });
+    $('#address-with-ean').addressAutocomplete();
+    $('#ean-for-address-with-ean').eanAutocomplete({
+        addressSelector: '#address-with-ean'
+    });
+    $('#address-with-ean-empty').addressAutocomplete();
+    $('#ean-for-address-with-ean-empty').eanAutocomplete({
+        addressSelector: '#address-with-ean-empty'
     });
 </script>
 </body>

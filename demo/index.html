@@ -87,7 +87,7 @@
         </div>
         <div class="col-sm-6">
             <div class="col-sm-12">
-                <input id="ean-for-address-with-ean" class="form-control ean" type="text" name="ean" placeholder="EAN" value="" />
+                <input id="ean-for-address-with-ean" class="form-control ean" type="text" name="ean" placeholder="Gas EAN" value="" />
             </div>
         </div>
     </div>
@@ -114,7 +114,7 @@
         </div>
         <div class="col-sm-6">
             <div class="col-sm-12">
-                <input id="ean-for-address-with-ean-empty" class="form-control ean" type="text" name="ean" placeholder="EAN" value="" />
+                <input id="ean-for-address-with-ean-empty" class="form-control ean" type="text" name="ean" placeholder="Electricity EAN" value="" />
             </div>
         </div>
     </div>
@@ -122,8 +122,8 @@
 
 <script type="text/javascript">
     //Econtract.Toolbox.Config.apiEndpoint = 'http://default.toolbox.staging-001.econtract.prvw.eu';
-    Econtract.Toolbox.Config.apiEndpoint = 'http://api.toolbox.lo';
-    Econtract.Toolbox.Config.apiKey = "I5MGUtMzU5NmMxM2JlNDE5M2IxNTg3ZG";
+    Econtract.Toolbox.Config.apiEndpoint = 'https://toolbox.econtract.be';
+    Econtract.Toolbox.Config.apiKey = "";
     $('#address-empty').addressAutocomplete();
     $('#address-partial').addressAutocomplete();
     $('#address-prefilled').addressAutocomplete({
@@ -131,11 +131,13 @@
     });
     $('#address-with-ean').addressAutocomplete();
     $('#ean-for-address-with-ean').eanAutocomplete({
-        addressSelector: '#address-with-ean'
+        addressSelector: '#address-with-ean',
+        energyType: 'gas'
     });
     $('#address-with-ean-empty').addressAutocomplete();
     $('#ean-for-address-with-ean-empty').eanAutocomplete({
-        addressSelector: '#address-with-ean-empty'
+        addressSelector: '#address-with-ean-empty',
+        energyType: 'electricity'
     });
 </script>
 </body>

@@ -87,7 +87,8 @@ Advanced usage
     </div>
 <script>
 $('#ean-for-address-with-ean').eanAutocomplete({
-    addressSelector: '#address-with-ean'
+    addressSelector: '#address-with-ean',
+    energyType: 'gas'
 });
 </script>
 ```

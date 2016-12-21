@@ -21,6 +21,7 @@ var Econtract;
         };
         Toolbox.EanConfig = {
             addressSelector: ".address",
+            energyType: null
         };
         var Client = (function () {
             function Client(endpoint) {
@@ -74,11 +75,18 @@ var Econtract;
                     callback([]);
                 });
             };
-            Client.prototype.findConnectionsByAddressId = function (addressId, callback) {
+            Client.prototype.findConnectionsByAddressId = function (addressId, energyType, callback) {
                 this.get('/connections', { address_id: addressId })
                     .success(function (response) {
                     if (response.length) {
-                        callback(response);
+                        var connections = [];
+                        for (var i in response) {
+                            var connection = response[i];
+                            if (energyType && connection.type == energyType) {
+                                connections.push(connection);
+                            }
+                        }
+                        callback(connections);
                     }
                     else {
                         callback([]);
@@ -176,33 +184,16 @@ var Econtract;
             }
             return StreetAutocomplete;
         }(Autocomplete));
-        var EanAutocomplete = (function (_super) {
-            __extends(EanAutocomplete, _super);
-            function EanAutocomplete(endpoint) {
-                _super.call(this, endpoint + '/connections', 'ean');
-                this.minChars = 0;
+        var EanAutocomplete = (function () {
+            function EanAutocomplete(input, addressElement, energyType) {
                 this.autocompleted = false;
                 this.suggestions = [];
-                this.transformResultCallback = function (response) {
-                    return {
-                        suggestions: $.map(response, function (item) {
-                            return { value: item.ean, data: item };
-                        })
-                    };
-                };
-            }
-            EanAutocomplete.prototype.create = function (input) {
-                var api = _super.prototype.create.call(this, input);
+                this.energyType = energyType;
+                this.addressElement = addressElement;
+                this.element = input;
                 var self = this;
                 var timeout;
                 var suggestions = [];
-                api.autocomplete('setOptions', {
-                    lookup: function (query, done) {
-                        done({
-                            suggestions: self.suggestions
-                        });
-                    },
-                });
                 this.element.on('change', function () {
                     self.autocompleted = false;
                 });
@@ -218,8 +209,8 @@ var Econtract;
                     timeout = setTimeout(function () {
                         var client = new Client();
                         client.findAddresses(address, function (addresses) {
-                            if (addresses.length > 0) {
-                                client.findConnectionsByAddressId(addresses[0].id, function (connections) {
+                            if (addresses.length == 1) {
+                                client.findConnectionsByAddressId(addresses[0].id, self.energyType, function (connections) {
                                     if (connections.length == 1) {
                                         self.element.val(connections[0].ean);
                                         self.autocompleted = true;
@@ -238,10 +229,9 @@ var Econtract;
                         });
                     }, 200);
                 });
-                return api;
-            };
+            }
             return EanAutocomplete;
-        }(Autocomplete));
+        }());
         Toolbox.EanAutocomplete = EanAutocomplete;
         var AddressAutocomplete = (function () {
             function AddressAutocomplete(endpoint) {
@@ -380,12 +370,14 @@ var Econtract;
         $(this).each(function (i, elem) {
             options = $.extend(Econtract.Toolbox.Config, Econtract.Toolbox.EanConfig, options);
             var elem = $(elem);
-            var autocomplete = new Econtract.Toolbox.EanAutocomplete(options.apiEndpoint);
-            autocomplete.addressElement = $(options.addressSelector, elem);
-            if (autocomplete.addressElement.length == 0) {
-                autocomplete.addressElement = $(options.addressSelector);
+            if (!options.energyType) {
+                throw new Error("Option 'energyType' is required");
             }
-            autocomplete.create(elem);
+            var addressElement = $(options.addressSelector);
+            if (addressElement.length == 0) {
+                throw new Error("Address not found using selector '" + options.addressSelector + "'");
+            }
+            var autocomplete = new Econtract.Toolbox.EanAutocomplete(elem, addressElement, options.energyType);
             elem.data('autocomplete', autocomplete);
         });
     };

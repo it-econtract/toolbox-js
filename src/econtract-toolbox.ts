@@ -17,6 +17,7 @@ namespace Econtract {
         };
         export var EanConfig:EanAutocompleteOptions = {
             addressSelector: ".address",        // Absolute address container selector
+            energyType: null
         };
 
         interface Address {
@@ -111,11 +112,18 @@ namespace Econtract {
                         callback([]);
                     });
             }
-            public findConnectionsByAddressId(addressId, callback:void) {
+            public findConnectionsByAddressId(addressId, energyType, callback:void) {
                 this.get('/connections', { address_id: addressId })
                     .success(function (response) {
                         if (response.length) {
-                            callback(response);
+                            var connections = [];
+                            for (var i in response) {
+                                var connection = response[i];
+                                if (energyType && connection.type == energyType) {
+                                    connections.push(connection);
+                                }
+                            }
+                            callback(connections);
                         } else {
                             callback([]);
                         }
@@ -215,33 +223,19 @@ namespace Econtract {
             };
         }
 
-        export class EanAutocomplete extends Autocomplete {
-            public minChars:number = 0;
+        export class EanAutocomplete {
             private addressElement:JQuery;
             private autocompleted:boolean = false;
             private suggestions:Array = [];
-            public constructor (endpoint) {
-                super(endpoint + '/connections', 'ean');
-            }
-            public transformResultCallback = function (response) {
-                return {
-                    suggestions: $.map(response, function (item) {
-                        return {value: item.ean, data: item};
-                    })
-                }
-            };
-            public create(input:JQuery) {
-                var api = super.create(input);
+
+            constructor(input:JQuery, addressElement:JQuery, energyType) {
+                this.energyType = energyType;
+                this.addressElement = addressElement;
+                this.element = input;
                 var self = this;
                 var timeout;
                 var suggestions = [];
-                api.autocomplete('setOptions', {
-                    lookup: function (query, done) {
-                        done({
-                            suggestions: self.suggestions
-                        });
-                    },
-                });
+
                 this.element.on('change', function () {
                     self.autocompleted = false;
                 });
@@ -258,8 +252,8 @@ namespace Econtract {
                     timeout = setTimeout(function () {
                         var client = new Client();
                         client.findAddresses(address, function (addresses) {
-                            if (addresses.length > 0) {
-                                client.findConnectionsByAddressId(addresses[0].id, function (connections) {
+                            if (addresses.length == 1) {
+                                client.findConnectionsByAddressId(addresses[0].id, self.energyType, function (connections) {
                                     if (connections.length == 1) {
                                         self.element.val(connections[0].ean);
                                         self.autocompleted = true;
@@ -276,8 +270,6 @@ namespace Econtract {
                         });
                     }, 200);
                 });
-
-                return api;
             }
         }
 
@@ -447,13 +439,15 @@ namespace Econtract {
             options = $.extend(Econtract.Toolbox.Config, Econtract.Toolbox.EanConfig, options);
 
             var elem = $(elem);
-
-            var autocomplete = new Econtract.Toolbox.EanAutocomplete(options.apiEndpoint);
-            autocomplete.addressElement = $(options.addressSelector, elem);
-            if (autocomplete.addressElement.length == 0) {
-                autocomplete.addressElement = $(options.addressSelector);
+            if (!options.energyType) {
+                throw new Error("Option 'energyType' is required");
             }
-            autocomplete.create(elem);
+            var addressElement = $(options.addressSelector);
+            if (addressElement.length == 0) {
+                throw new Error("Address not found using selector '" + options.addressSelector + "'");
+            }
+
+            var autocomplete = new Econtract.Toolbox.EanAutocomplete(elem, addressElement, options.energyType);
 
             elem.data('autocomplete', autocomplete);
         });
